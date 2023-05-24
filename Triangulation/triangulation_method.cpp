@@ -29,36 +29,6 @@
 
 using namespace easy3d;
 
-std::vector<Vector2D> Normalisation(std::vector<Vector2D> points){
-    // Translation
-    double x_total = 0.0;
-    double y_total = 0.0;
-    for (Vector2D point:points){
-        x_total += point.x();
-        y_total += point.y();
-    }
-    double x_mean = x_total / points.size();
-    double y_mean = y_total / points.size();
-    std::vector<Vector2D> translated_points;
-    for (Vector2D point:points){
-        Vector2D translated_point = Vector2D(point.x() - x_mean, point.y() - y_mean);
-        translated_points.push_back(translated_point);
-    }
-
-    // Scaling
-    double dist_total = 0.0;
-    for (Vector2D point:translated_points){
-        dist_total += sqrt(pow(point.x(), 2) + pow(point.y(), 2));
-    }
-    double dist_mean = dist_total / points.size();
-    std::vector<Vector2D> scaled_points;
-    for (Vector2D point:translated_points){
-        Vector2D scaled_point = Vector2D(point.x() * (sqrt(2) / dist_mean), point.y() * (sqrt(2) / dist_mean));
-        scaled_points.push_back(scaled_point);
-    }
-    return scaled_points;
-}
-
 /**
  * TODO: Finish this function for reconstructing 3D geometry from corresponding image points.
  * @return True on success, otherwise false. On success, the reconstructed 3D points must be written to 'points_3d'
@@ -181,21 +151,21 @@ bool Triangulation::triangulation(
     M.set_column(1, Vector3D(5.5, 5.5, 5.5));
 
     /// define a 15 by 9 matrix (and all elements initialized to 0.0)
-    Matrix W(15, 9, 0.0);
+//    Matrix W(15, 9, 0.0);
     /// set the first row by a 9-dimensional vector
-    W.set_row(0, {0, 1, 2, 3, 4, 5, 6, 7, 8}); // {....} is equivalent to a std::vector<double>
-
-    /// get the number of rows.
-    int num_rows = W.rows();
-
-    /// get the number of columns.
-    int num_cols = W.cols();
-
-    /// get the the element at row 1 and column 2
-    double value = W(1, 2);
-
-    /// get the last column of a matrix
-    Vector last_column = W.get_column(W.cols() - 1);
+//    W.set_row(0, {0, 1, 2, 3, 4, 5, 6, 7, 8}); // {....} is equivalent to a std::vector<double>
+//
+//    /// get the number of rows.
+//    int num_rows = W.rows();
+//
+//    /// get the number of columns.
+//    int num_cols = W.cols();
+//
+//    /// get the the element at row 1 and column 2
+//    double value = W(1, 2);
+//
+//    /// get the last column of a matrix
+//    Vector last_column = W.get_column(W.cols() - 1);
 
     /// define a 3 by 3 identity matrix
     Matrix33 I = Matrix::identity(3, 3, 1.0);
@@ -216,9 +186,6 @@ bool Triangulation::triangulation(
     //      - compute the essential matrix E;
     //      - recover rotation R and t.
 
-    std::vector<Vector2D> norm_points_0 = Normalisation(points_0);
-
-
     // TODO: Reconstruct 3D points. The main task is
     //      - triangulate a pair of image points (i.e., compute the 3D coordinates for each corresponding point pair)
 
@@ -236,18 +203,22 @@ bool Triangulation::triangulation(
     // TODO: think about whether this is actually correct for an input check.
 
 
-    std::vector<Vector2D> points_2d_0 = Normalise2DPoints(points_0);
-
-    std::cout << "test the values of the normalization" << std::endl;
-    for (int i = 0; i < points_2d_0.size(); i++){
-        std::cout << points_2d_0[i] << std::endl;
-    }
-
     std::vector<Vector2D> points_normalized_0 = Normalise2DPoints(points_0);
     std::vector<Vector2D> points_normalized_1 = Normalise2DPoints(points_1);
 
-
     Matrix WMatrix = ConstructWMatrix(points_normalized_0, points_normalized_1);
+
+    // single value decomposition
+    int m = WMatrix.rows();
+    int n = WMatrix.cols();
+    Matrix U(m, m, 0.0);   // initialized with 0s
+    Matrix S(m, n, 0.0);   // initialized with 0s
+    Matrix V(n, n, 0.0);   // initialized with 0s
+    svd_decompose(WMatrix, U, S, V);
+    std::cout << "V:" << std::endl << V << std::endl;
+    Vector fVector = V.get_column(V.cols() - 1);
+    std::cout << "f:" << std::endl << fVector << std::endl;
+
 
     if (points_3d.size() < 8){
         return false;
