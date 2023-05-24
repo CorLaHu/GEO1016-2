@@ -29,6 +29,35 @@
 
 using namespace easy3d;
 
+std::vector<Vector2D> Normalisation(std::vector<Vector2D> points){
+    // Translation
+    double x_total = 0.0;
+    double y_total = 0.0;
+    for (Vector2D point:points){
+        x_total += point.x();
+        y_total += point.y();
+    }
+    double x_mean = x_total / points.size();
+    double y_mean = y_total / points.size();
+    std::vector<Vector2D> translated_points;
+    for (Vector2D point:points){
+        Vector2D translated_point = Vector2D(point.x() - x_mean, point.y() - y_mean);
+        translated_points.push_back(translated_point);
+    }
+
+    // Scaling
+    double dist_total = 0.0;
+    for (Vector2D point:translated_points){
+        dist_total += sqrt(pow(point.x(), 2) + pow(point.y(), 2));
+    }
+    double dist_mean = dist_total / points.size();
+    std::vector<Vector2D> scaled_points;
+    for (Vector2D point:translated_points){
+        Vector2D scaled_point = Vector2D(point.x() * (sqrt(2) / dist_mean), point.y() * (sqrt(2) / dist_mean));
+        scaled_points.push_back(scaled_point);
+    }
+    return scaled_points;
+}
 
 /**
  * TODO: Finish this function for reconstructing 3D geometry from corresponding image points.
@@ -138,6 +167,9 @@ bool Triangulation::triangulation(
     //      - estimate the fundamental matrix F;
     //      - compute the essential matrix E;
     //      - recover rotation R and t.
+
+    std::vector<Vector2D> norm_points_0 = Normalisation(points_0);
+
 
     // TODO: Reconstruct 3D points. The main task is
     //      - triangulate a pair of image points (i.e., compute the 3D coordinates for each corresponding point pair)
