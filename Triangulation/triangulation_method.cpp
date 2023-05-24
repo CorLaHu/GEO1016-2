@@ -215,9 +215,11 @@ bool Triangulation::triangulation(
     Matrix S(m, n, 0.0);   // initialized with 0s
     Matrix V(n, n, 0.0);   // initialized with 0s
     svd_decompose(WMatrix, U, S, V);
-    std::cout << "V:" << std::endl << V << std::endl;
     Vector fVector = V.get_column(V.cols() - 1);
-    std::cout << "f:" << std::endl << fVector << std::endl;
+    Matrix33 FMatrix(fVector[0], fVector[1], fVector[2],
+                        fVector[3], fVector[4], fVector[5],
+                        fVector[6], fVector[7], fVector[8]);
+    std::cout << "F:" << std::endl << FMatrix << std::endl;
 
 
     if (points_3d.size() < 8){
