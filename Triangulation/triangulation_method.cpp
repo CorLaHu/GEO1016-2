@@ -35,6 +35,55 @@ using namespace easy3d;
  * @return True on success, otherwise false. On success, the reconstructed 3D points must be written to 'points_3d'
  *      and the recovered relative pose must be written to R and t.
  */
+
+std::vector<Vector2D> Normalise2DPoints(const std::vector<Vector2D>& input){
+    // Translate the points
+    double avg_x = 0, avg_y = 0;
+    for (const auto& point : input){
+        avg_x += point.x();
+        avg_y += point.y();
+    }
+    avg_x = avg_x / input.size();
+    avg_y = avg_y / input.size();
+
+    std::vector<Vector2D> translated_points;
+    for (const auto& point : input){
+        translated_points.emplace_back(Vector2D(point.x() - avg_x, point.y() - avg_y));
+    };
+
+    // Calculate the scaling factor
+    double total_distance = 0;
+    for (const auto& point : translated_points){
+        total_distance += sqrt(pow(point.x(), 2) + pow(point.y(), 2));
+    }
+    double avg_distance = total_distance / input.size();
+    double scale = sqrt(2) / avg_distance;
+
+    // Apply the scaling to the translated points
+    for (auto& point : translated_points){
+        point = point * scale;
+    }
+    return translated_points;
+};
+
+Matrix ConstructWMatrix(const std::vector<Vector2D> &points_normalized_0,
+                        const std::vector<Vector2D> &points_normalized_1) {
+    Matrix wmatrix = Matrix(points_normalized_0.size(), 9, 0.0);
+
+    for (int i = 0; i < points_normalized_0.size(); i++){
+        wmatrix(i, 0) = points_normalized_0[i].x() * points_normalized_1[i].x();
+        wmatrix(i, 1) = points_normalized_0[i].y() * points_normalized_1[i].x();
+        wmatrix(i, 2) = points_normalized_1[i].x();
+        wmatrix(i, 3) = points_normalized_0[i].x() * points_normalized_1[i].y();
+        wmatrix(i, 4) = points_normalized_0[i].y() * points_normalized_1[i].y();
+        wmatrix(i, 5) = points_normalized_1[i].y();
+        wmatrix(i, 6) = points_normalized_0[i].x();
+        wmatrix(i, 7) = points_normalized_0[i].y();
+        wmatrix(i, 8) = 1;
+    }
+    return wmatrix;
+}
+
 bool Triangulation::triangulation(
         double fx, double fy,     /// input: the focal lengths (same for both cameras)
         double cx, double cy,     /// input: the principal point (same for both cameras)
@@ -132,7 +181,6 @@ bool Triangulation::triangulation(
     //--------------------------------------------------------------------------------------------------------------
     // implementation starts ...
 
-    // TODO: check if the input is valid (always good because you never known how others will call your function).
 
     // TODO: Estimate relative pose of two views. This can be subdivided into
     //      - estimate the fundamental matrix F;
@@ -152,5 +200,31 @@ bool Triangulation::triangulation(
     //          - function not implemented yet;
     //          - input not valid (e.g., not enough points, point numbers don't match);
     //          - encountered failure in any step.
-    return points_3d.size() > 0;
+
+    // TODO: think about whether this is actually correct for an input check.
+
+
+    std::vector<Vector2D> points_2d_0 = Normalise2DPoints(points_0);
+
+    std::cout << "test the values of the normalization" << std::endl;
+    for (int i = 0; i < points_2d_0.size(); i++){
+        std::cout << points_2d_0[i] << std::endl;
+    }
+
+    std::vector<Vector2D> points_normalized_0 = Normalise2DPoints(points_0);
+    std::vector<Vector2D> points_normalized_1 = Normalise2DPoints(points_1);
+
+
+    Matrix WMatrix = ConstructWMatrix(points_normalized_0, points_normalized_1);
+
+    if (points_3d.size() < 8){
+        return false;
+    }
+
+
+
+    return true;
 }
+
+
+
