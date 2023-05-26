@@ -35,34 +35,36 @@ using namespace easy3d;
  *      and the recovered relative pose must be written to R and t.
  */
 
-std::vector<Vector2D> Normalise2DPoints(const std::vector<Vector2D>& input){
+void Normalise2DPoints(const std::vector<Vector2D>& input, // input
+                       std::vector<Vector2D>& output_points, // output
+                       Vector2D& translation, double& scaling // output
+                       )
+                       {
     // Translate the points
     double avg_x = 0, avg_y = 0;
     for (const auto& point : input){
         avg_x += point.x();
         avg_y += point.y();
     }
-    avg_x = avg_x / input.size();
-    avg_y = avg_y / input.size();
+    translation.x() = avg_x / input.size();
+    translation.y() = avg_y / input.size();
 
-    std::vector<Vector2D> translated_points;
     for (const auto& point : input){
-        translated_points.emplace_back(Vector2D(point.x() - avg_x, point.y() - avg_y));
+        output_points.emplace_back(Vector2D(point.x() - translation.x(), point.y() - translation.y()));
     };
 
     // Calculate the scaling factor
     double total_distance = 0;
-    for (const auto& point : translated_points){
+    for (const auto& point : output_points){
         total_distance += sqrt(pow(point.x(), 2) + pow(point.y(), 2));
     }
     double avg_distance = total_distance / input.size();
-    double scale = sqrt(2) / avg_distance;
+    scaling = sqrt(2) / avg_distance;
 
     // Apply the scaling to the translated points
-    for (auto& point : translated_points){
-        point = point * scale;
+    for (auto& point : output_points){
+        point = point * scaling;
     }
-    return translated_points;
 };
 
 Matrix ConstructWMatrix(const std::vector<Vector2D> &points_normalized_0,
@@ -135,9 +137,9 @@ bool Triangulation::triangulation(
     Matrix33 A;
 
     /// define and initialize a 3 by 3 matrix
-    Matrix33 T(1.1, 2.2, 3.3,
-               0, 2.2, 3.3,
-               0, 0, 1);
+//    Matrix33 T(1.1, 2.2, 3.3,
+//               0, 2.2, 3.3,
+//               0, 0, 1);
 
     /// define and initialize a 3 by 4 matrix
     Matrix34 M(1.1, 2.2, 3.3, 0,
@@ -203,8 +205,14 @@ bool Triangulation::triangulation(
     // TODO: think about whether this is actually correct for an input check.
 
 
-    std::vector<Vector2D> points_normalized_0 = Normalise2DPoints(points_0);
-    std::vector<Vector2D> points_normalized_1 = Normalise2DPoints(points_1);
+    std::vector<Vector2D> points_normalized_0;
+    Vector2D translation0(0.0, 0.0);
+    double scaling0= 0.0;
+    Normalise2DPoints(points_0, points_normalized_0, translation0, scaling0);
+    std::vector<Vector2D> points_normalized_1;
+    Vector2D translation1(0.0, 0.0);
+    double scaling1= 0.0;
+    Normalise2DPoints(points_1, points_normalized_1, translation1, scaling1);
 
     Matrix WMatrix = ConstructWMatrix(points_normalized_0, points_normalized_1);
 
@@ -229,7 +237,17 @@ bool Triangulation::triangulation(
     Matrix33 D2(D(0, 0), 0.0, 0.0,
                 0.0, D(1, 1), 0.0,
                 0.0, 0.0, 0.0);
-    Matrix FMatrix = U2 * D2 * V2.transpose();
+    Matrix FqMatrix = U2 * D2 * V2.transpose();
+    std::cout << "Fq:" << std::endl << FqMatrix << std::endl;
+
+    // denormalization
+    Matrix33 T0(scaling0, 0.0, -translation0.x() * scaling0,
+                0.0, scaling0, -translation0.y() * scaling0,
+                0.0, 0.0, 1.0);
+    Matrix33 T1(scaling1, 0.0, -translation1.x() * scaling1,
+                0.0, scaling1, -translation1.y() * scaling1,
+                0.0, 0.0, 1.0);
+    Matrix FMatrix = T1.transpose() * FqMatrix * T0;
     std::cout << "F:" << std::endl << FMatrix << std::endl;
 
     if (points_3d.size() < 8){
