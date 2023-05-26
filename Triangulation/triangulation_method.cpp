@@ -306,8 +306,7 @@ bool Triangulation::triangulation(
         tVector = -U3.get_column(U3.cols() - 1);
     }
 
-    // check whether sign of tVector is correct by looking at the depth of the points
-
+    // check whether sign of tVector is correct by looking at the depth of the points. If z > 0, then the sign is correct
     int count1 = 0;
     for (const auto& point : points_1){
         Vector3D projected_point = RMatrix * point + tVector;
@@ -315,7 +314,12 @@ bool Triangulation::triangulation(
             count1 += 1;
         }
     }
-
+    for (const auto& point : points_0){
+        Vector3D projected_point = RMatrix * point + tVector;
+        if (projected_point.z() > 0){
+            count1 += 1;
+        }
+    }
     int count2 = 0;
     for (const auto& point : points_1){
         Vector3D projected_point = RMatrix * point + -tVector;
@@ -323,7 +327,13 @@ bool Triangulation::triangulation(
             count2 += 1;
         }
     }
-
+    for (const auto& point : points_0){
+        // we need to think about this; isn't this always true? Lecture 5 slide 20
+        if (point.z() > 0){
+            count2 += 1;
+        }
+    }
+    // Accept the sign of tVector that has the most points in front of the camera
     if (count2 > count1){
         tVector = -tVector;
     }
