@@ -209,6 +209,7 @@ bool Triangulation::triangulation(
     Vector2D translation0(0.0, 0.0);
     double scaling0= 0.0;
     Normalise2DPoints(points_0, points_normalized_0, translation0, scaling0);
+    std::cout << "scaling 0:" << scaling0 << std::endl;
     std::vector<Vector2D> points_normalized_1;
     Vector2D translation1(0.0, 0.0);
     double scaling1= 0.0;
