@@ -41,13 +41,13 @@ void Normalise2DPoints(const std::vector<Vector2D>& input, // input
                        )
                        {
     // Translate the points
-    double avg_x = 0, avg_y = 0;
+    double total_x = 0, total_y = 0;
     for (const auto& point : input){
-        avg_x += point.x();
-        avg_y += point.y();
+        total_x += point.x();
+        total_y += point.y();
     }
-    translation.x() = avg_x / input.size();
-    translation.y() = avg_y / input.size();
+    translation.x() = total_x / input.size();
+    translation.y() = total_y / input.size();
 
     for (const auto& point : input){
         output_points.emplace_back(Vector2D(point.x() - translation.x(), point.y() - translation.y()));
@@ -251,9 +251,65 @@ bool Triangulation::triangulation(
     Matrix FMatrix = T1.transpose() * FqMatrix * T0;
     std::cout << "F:" << std::endl << FMatrix << std::endl;
 
+
+    // Calibration matrices
+    Matrix33 K(fx, 0, cx,
+               0, fy, cy,
+               0, 0, 1);
+
+    Matrix33 EMatrix = K.transpose() * FMatrix * K;
+
+    // single value decomposition of EMatrix
+
+    Matrix U3(3, 3, 0.0);   // initialized with 0s
+    Matrix D3(3, 3, 0.0);   // initialized with 0s
+    Matrix V3(3, 3, 0.0);   // initialized with 0s
+    svd_decompose(EMatrix, U3, D3, V3);
+
+    Matrix33 WhyMatrix(0.0, -1.0, 0.0,
+                       1.0, 0.0, 0.0,
+                       0.0, 0.0, 1.0);
+
+    Matrix33 ZMatrix(0.0, 1.0, 0.0,
+                     -1.0, 0.0, 0.0,
+                     0.0, 0.0, 0.0);
+
+    double option1 = determinant(U3 * WhyMatrix * V3.transpose());
+    double option2 = determinant(U3 * WhyMatrix.transpose() * V3.transpose());
+    double option3 = determinant(U3 * ZMatrix * V3.transpose());
+    double option4 = determinant(U3 * ZMatrix.transpose() * V3.transpose());
+
+    std::vector<double> options = {abs(option1 - 1), abs(option2 - 1), abs(option3 - 1), abs(option4 - 1)};
+
+    // get index of lowest in options
+    int index;
+    for (int i = 0; i < options.size(); i++){
+        if (options[i] == *std::min_element(options.begin(), options.end())){
+            index = i;
+        }
+    }
+
+    Vector tVector(0);
+    Matrix33 RMatrix;
+    // Select R matrix based on lowest option
+    if (index == 0){
+        RMatrix = U3 * WhyMatrix * V3.transpose();
+        tVector = U3.get_column(U3.cols() - 1);
+    } else if (index == 1){
+        RMatrix = U3 * WhyMatrix.transpose() * V3.transpose();
+        tVector = -U3.get_column(U3.cols() - 1);
+    } else if (index == 2){
+        RMatrix = U3 * ZMatrix * V3.transpose();
+        tVector = U3.get_column(U3.cols() - 1);
+    } else if (index == 3){
+        RMatrix = U3 * ZMatrix.transpose() * V3.transpose();
+        tVector = -U3.get_column(U3.cols() - 1);
+    }
+
+
     if (points_3d.size() < 8){
         return false;
-    }
+    };
 
 
 
