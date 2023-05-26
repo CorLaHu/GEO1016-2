@@ -306,6 +306,28 @@ bool Triangulation::triangulation(
         tVector = -U3.get_column(U3.cols() - 1);
     }
 
+    // check whether sign of tVector is correct by looking at the depth of the points
+
+    int count1 = 0;
+    for (const auto& point : points_1){
+        Vector3D projected_point = RMatrix * point + tVector;
+        if (projected_point.z() > 0){
+            count1 += 1;
+        }
+    }
+
+    int count2 = 0;
+    for (const auto& point : points_1){
+        Vector3D projected_point = RMatrix * point + -tVector;
+        if (projected_point.z() > 0){
+            count2 += 1;
+        }
+    }
+
+    if (count2 > count1){
+        tVector = -tVector;
+    }
+
 
     if (points_3d.size() < 8){
         return false;
