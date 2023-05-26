@@ -216,11 +216,21 @@ bool Triangulation::triangulation(
     Matrix V(n, n, 0.0);   // initialized with 0s
     svd_decompose(WMatrix, U, S, V);
     Vector fVector = V.get_column(V.cols() - 1);
-    Matrix33 FMatrix(fVector[0], fVector[1], fVector[2],
+    Matrix33 F_estimate_Matrix(fVector[0], fVector[1], fVector[2],
                         fVector[3], fVector[4], fVector[5],
                         fVector[6], fVector[7], fVector[8]);
-    std::cout << "F:" << std::endl << FMatrix << std::endl;
+    std::cout << "F^:" << std::endl << F_estimate_Matrix << std::endl;
 
+    // constraint enforcement
+    Matrix U2(3, 3, 0.0);   // initialized with 0s
+    Matrix D(3, 3, 0.0);   // initialized with 0s
+    Matrix V2(3, 3, 0.0);   // initialized with 0s
+    svd_decompose(F_estimate_Matrix, U2, D, V2);
+    Matrix33 D2(D(0, 0), 0.0, 0.0,
+                0.0, D(1, 1), 0.0,
+                0.0, 0.0, 0.0);
+    Matrix FMatrix = U2 * D2 * V2.transpose();
+    std::cout << "F:" << std::endl << FMatrix << std::endl;
 
     if (points_3d.size() < 8){
         return false;
