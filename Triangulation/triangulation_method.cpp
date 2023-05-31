@@ -217,7 +217,7 @@ bool Triangulation::triangulation(
 
     Matrix WMatrix = ConstructWMatrix(points_normalized_0, points_normalized_1);
 
-    // single value decomposition
+    // Single value decomposition
     int m = WMatrix.rows();
     int n = WMatrix.cols();
     Matrix U(m, m, 0.0);   // initialized with 0s
@@ -230,7 +230,7 @@ bool Triangulation::triangulation(
                         fVector[6], fVector[7], fVector[8]);
     std::cout << "F^:" << std::endl << F_estimate_Matrix << std::endl;
 
-    // constraint enforcement
+    // Constraint enforcement
     Matrix U2(3, 3, 0.0);   // initialized with 0s
     Matrix D(3, 3, 0.0);   // initialized with 0s
     Matrix V2(3, 3, 0.0);   // initialized with 0s
@@ -241,7 +241,7 @@ bool Triangulation::triangulation(
     Matrix FqMatrix = U2 * D2 * V2.transpose();
     std::cout << "Fq:" << std::endl << FqMatrix << std::endl;
 
-    // denormalization
+    // Denormalization
     Matrix33 T0(scaling0, 0.0, -translation0.x() * scaling0,
                 0.0, scaling0, -translation0.y() * scaling0,
                 0.0, 0.0, 1.0);
@@ -253,14 +253,14 @@ bool Triangulation::triangulation(
 
 
     // Calibration matrices
-    Matrix33 K(fx, 1, cx,
+    // Ask about whether the skew should be 1 or 0 in the K matrix
+    Matrix33 K(fx, 0, cx,
                0, fy, cy,
                0, 0, 1);
 
     Matrix33 EMatrix = K.transpose() * FMatrix * K;
 
-    // single value decomposition of EMatrix
-
+    // Single value decomposition of EMatrix
     Matrix U3(3, 3, 0.0);   // initialized with 0s
     Matrix D3(3, 3, 0.0);   // initialized with 0s
     Matrix V3(3, 3, 0.0);   // initialized with 0s
@@ -281,7 +281,7 @@ bool Triangulation::triangulation(
 
     std::vector<double> options = {abs(option1 - 1), abs(option2 - 1), abs(option3 - 1), abs(option4 - 1)};
 
-    // get index of lowest in options
+    // Get index of lowest in options
     int index;
     for (int i = 0; i < options.size(); i++){
         if (options[i] == *std::min_element(options.begin(), options.end())){
@@ -289,7 +289,7 @@ bool Triangulation::triangulation(
         }
     }
 
-    Vector tVector(0);
+    Vector3D tVector(0);
     Matrix33 RMatrix;
     // Select R matrix based on lowest option
     if (index == 0){
@@ -306,7 +306,7 @@ bool Triangulation::triangulation(
         tVector = -U3.get_column(U3.cols() - 1);
     }
 
-    // check whether sign of tVector is correct by looking at the depth of the points. If z > 0, then the sign is correct
+    // Check whether sign of tVector is correct by looking at the depth of the points. If z > 0, then the sign is correct
     int count1 = 0;
     for (const auto& point : points_1){
         Vector3D projected_point = RMatrix * point + tVector;
@@ -341,6 +341,17 @@ bool Triangulation::triangulation(
         tVector = -tVector;
     }
 
+    // Compute the projection matrix from K, R, and t.
+    Matrix34 RT0(1, 0, 0, 0,
+                 0, 1, 0, 0,
+                 0, 0, 1, 0);
+
+    Matrix34 RT1(RMatrix(0, 0), RMatrix(0, 1), RMatrix(0, 2), tVector.x(),
+                    RMatrix(1, 0), RMatrix(1, 1), RMatrix(1, 2), tVector.y(),
+                    RMatrix(2, 0), RMatrix(2, 1), RMatrix(2, 2), tVector.z());
+
+    Matrix34 M0 = K * RT0;
+    Matrix34 M1 = K * RT1;
 
     if (points_3d.size() < 8){
         return false;
