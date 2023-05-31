@@ -134,46 +134,10 @@ bool Triangulation::triangulation(
     Vector3D q = p.homogeneous();
 
     /// define a 3 by 3 matrix (and all elements initialized to 0.0)
-    Matrix33 A;
-
-    /// define and initialize a 3 by 3 matrix
-//    Matrix33 T(1.1, 2.2, 3.3,
-//               0, 2.2, 3.3,
-//               0, 0, 1);
-
-    /// define and initialize a 3 by 4 matrix
-    Matrix34 M(1.1, 2.2, 3.3, 0,
-               0, 2.2, 3.3, 1,
-               0, 0, 1, 1);
-
-    /// set first row by a vector
-    M.set_row(0, Vector4D(1.1, 2.2, 3.3, 4.4));
-
-    /// set second column by a vector
-    M.set_column(1, Vector3D(5.5, 5.5, 5.5));
-
-    /// define a 15 by 9 matrix (and all elements initialized to 0.0)
-//    Matrix W(15, 9, 0.0);
-    /// set the first row by a 9-dimensional vector
-//    W.set_row(0, {0, 1, 2, 3, 4, 5, 6, 7, 8}); // {....} is equivalent to a std::vector<double>
-//
-//    /// get the number of rows.
-//    int num_rows = W.rows();
-//
-//    /// get the number of columns.
-//    int num_cols = W.cols();
-//
-//    /// get the the element at row 1 and column 2
-//    double value = W(1, 2);
-//
-//    /// get the last column of a matrix
-//    Vector last_column = W.get_column(W.cols() - 1);
 
     /// define a 3 by 3 identity matrix
-    Matrix33 I = Matrix::identity(3, 3, 1.0);
 
     /// matrix-vector product
-    Vector3D v = M * Vector4D(1, 2, 3, 4); // M is 3 by 4
 
     ///For more functions of Matrix and Vector, please refer to 'matrix.h' and 'vector.h'
 
@@ -203,7 +167,10 @@ bool Triangulation::triangulation(
     //          - encountered failure in any step.
 
     // TODO: think about whether this is actually correct for an input check.
-
+//
+//    if (points_3d.size() < 8){
+//        return false;
+//    };
 
     std::vector<Vector2D> points_normalized_0;
     Vector2D translation0(0.0, 0.0);
@@ -289,48 +256,46 @@ bool Triangulation::triangulation(
         }
     }
 
+    std::cout << "got here" << std::endl;
+
     Vector3D tVector(0);
     Matrix33 RMatrix;
     // Select R matrix based on lowest option
-    if (index == 0){
+    if (index == 0 || index == 2){
         RMatrix = U3 * WhyMatrix * V3.transpose();
         tVector = U3.get_column(U3.cols() - 1);
-    } else if (index == 1){
+    } else if (index == 1 || index == 3){
         RMatrix = U3 * WhyMatrix.transpose() * V3.transpose();
         tVector = -U3.get_column(U3.cols() - 1);
-    } else if (index == 2){
-        RMatrix = U3 * ZMatrix * V3.transpose();
-        tVector = U3.get_column(U3.cols() - 1);
-    } else if (index == 3){
-        RMatrix = U3 * ZMatrix.transpose() * V3.transpose();
-        tVector = -U3.get_column(U3.cols() - 1);
-    }
+    };
+
+    std::cout << "got here" << std::endl;
 
     // Check whether sign of tVector is correct by looking at the depth of the points. If z > 0, then the sign is correct
     int count1 = 0;
     for (const auto& point : points_1){
-        Vector3D projected_point = RMatrix * point + tVector;
+        Vector3D projected_point = RMatrix * Vector3D(point.x(), point.y(), 1) + tVector;
         if (projected_point.z() > 0){
             count1 += 1;
         }
     }
     for (const auto& point : points_0){
-        Vector3D projected_point = RMatrix * point;
+        Vector3D projected_point = RMatrix * Vector3D(point.x(), point.y(), 1);
         if (projected_point.z() > 0){
             count1 += 1;
         }
     }
-
+    
     int count2 = 0;
     for (const auto& point : points_0){
-        Vector3D projected_point = RMatrix * point;
+        Vector3D projected_point = RMatrix * Vector3D(point.x(), point.y(), 1);
         if (projected_point.z() > 0){
             count2 += 1;
         }
     }
 
     for (const auto& point : points_1){
-        Vector3D projected_point = RMatrix * point - tVector;
+        Vector3D projected_point = RMatrix * Vector3D(point.x(), point.y(), 1) - tVector;
         if (projected_point.z() > 0){
             count2 += 1;
         }
@@ -340,6 +305,7 @@ bool Triangulation::triangulation(
     if (count2 > count1){
         tVector = -tVector;
     }
+
 
     // Compute the projection matrix from K, R, and t.
     Matrix34 RT0(1, 0, 0, 0,
@@ -353,9 +319,11 @@ bool Triangulation::triangulation(
     Matrix34 M0 = K * RT0;
     Matrix34 M1 = K * RT1;
 
-    if (points_3d.size() < 8){
-        return false;
-    };
+
+
+    std::cout << "this is the tVector" << std::endl;
+    std::cout << tVector << std::endl;
+
 
 
 
