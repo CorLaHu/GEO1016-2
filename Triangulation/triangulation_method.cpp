@@ -167,10 +167,7 @@ bool Triangulation::triangulation(
     //          - encountered failure in any step.
 
     // TODO: think about whether this is actually correct for an input check.
-//
-//    if (points_3d.size() < 8){
-//        return false;
-//    };
+
 
     std::vector<Vector2D> points_normalized_0;
     Vector2D translation0(0.0, 0.0);
@@ -256,8 +253,6 @@ bool Triangulation::triangulation(
         }
     }
 
-    std::cout << "got here" << std::endl;
-
     Vector3D tVector(0);
     Matrix33 RMatrix;
     // Select R matrix based on lowest option
@@ -285,7 +280,7 @@ bool Triangulation::triangulation(
             count1 += 1;
         }
     }
-    
+
     int count2 = 0;
     for (const auto& point : points_0){
         Vector3D projected_point = RMatrix * Vector3D(point.x(), point.y(), 1);
@@ -306,24 +301,46 @@ bool Triangulation::triangulation(
         tVector = -tVector;
     }
 
+    // Create projection matrices
+    Matrix34 Rt_0(1.0, 0.0, 0.0, 0.0,
+                  0.0, 1.0, 0.0, 0.0,
+                  0.0, 0.0, 1.0, 0.0);
+    Matrix projection_matrix_0 = K * Rt_0;
 
-    // Compute the projection matrix from K, R, and t.
-    Matrix34 RT0(1, 0, 0, 0,
-                 0, 1, 0, 0,
-                 0, 0, 1, 0);
+    Matrix34 Rt_1(RMatrix(0, 0), RMatrix(0, 1), RMatrix(0, 2), tVector.x(),
+                  RMatrix(1, 0), RMatrix(1, 1), RMatrix(1, 2), tVector.y(),
+                  RMatrix(2, 0), RMatrix(2, 1), RMatrix(2, 2), tVector.z());
+    Matrix projection_matrix_1 = K * Rt_1;
 
-    Matrix34 RT1(RMatrix(0, 0), RMatrix(0, 1), RMatrix(0, 2), tVector.x(),
-                    RMatrix(1, 0), RMatrix(1, 1), RMatrix(1, 2), tVector.y(),
-                    RMatrix(2, 0), RMatrix(2, 1), RMatrix(2, 2), tVector.z());
+    // create matrix A
+    Vector m1_0 = projection_matrix_0.get_row(0);
+    Vector m2_0 = projection_matrix_0.get_row(1);
+    Vector m3_0 = projection_matrix_0.get_row(2);
+    Vector m1_1 = projection_matrix_1.get_row(0);
+    Vector m2_1 = projection_matrix_1.get_row(1);
+    Vector m3_1 = projection_matrix_1.get_row(2);
 
-    Matrix34 M0 = K * RT0;
-    Matrix34 M1 = K * RT1;
+    for(int i = 0; i < points_0.size(); ++i){
+        Matrix A(4, 4, 0.0);
+        A.set_row(0, points_0[i].x()* m3_0 - m1_0);
+        A.set_row(1, points_0[i].y()* m3_0 - m2_0);
+        A.set_row(2, points_1[i].x()* m3_1 - m1_1);
+        A.set_row(3, points_1[i].y()* m3_1 - m2_1);
+        Matrix U4(4, 4, 0.0);   // initialized with 0s
+        Matrix D4(4, 4, 0.0);   // initialized with 0s
+        Matrix V4(4, 4, 0.0);   // initialized with 0s
+        svd_decompose(A, U4, D4, V4);
+        Vector P_inhomogeneous = V4.get_column(V4.cols() - 1);
+        Vector P_homogeneous = P_inhomogeneous / P_inhomogeneous[3];
+        std::cout << "P:" << P_homogeneous << std::endl;
+        Vector3D P(P_homogeneous[0], P_homogeneous[1], P_homogeneous[2]);
+        points_3d.push_back(P);
+    }
 
 
-
-    std::cout << "this is the tVector" << std::endl;
-    std::cout << tVector << std::endl;
-
+    if (points_3d.size() < 8){
+        return false;
+    };
 
 
 
