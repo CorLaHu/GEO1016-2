@@ -85,8 +85,8 @@ Matrix ConstructWMatrix(const std::vector<Vector2D> &points_normalized_0,
     return wmatrix;
 }
 
-std::vector<Vector3D> project_points(std::vector<Vector2D> points_0, std::vector<Vector2D> points_1,
-                                     Matrix33 R,Vector3D t, Matrix K, Matrix &p_m0, Matrix &p_m1){
+std::vector<Vector3D> Construct_3D_points(std::vector<Vector2D> points_0, std::vector<Vector2D> points_1,
+                                          Matrix33 R, Vector3D t, Matrix K, Matrix p_m0, Matrix p_m1){
     Matrix34 Rt_0(1.0, 0.0, 0.0, 0.0,
                   0.0, 1.0, 0.0, 0.0,
                   0.0, 0.0, 1.0, 0.0);
@@ -124,6 +124,7 @@ std::vector<Vector3D> project_points(std::vector<Vector2D> points_0, std::vector
         svd_decompose(A, U4, D4, V4);
         Vector P_inhomogeneous = V4.get_column(V4.cols() - 1);
         Vector P_homogeneous = P_inhomogeneous / P_inhomogeneous[3];
+        std::cout << "point " << i << ": " << P_homogeneous << std::endl;
         Vector3D P(P_homogeneous[0], P_homogeneous[1], P_homogeneous[2]);
         returnpoints.push_back(P);
     }
@@ -275,10 +276,12 @@ bool Triangulation::triangulation(
         Matrix candidate_projection_matrix_0;
         Matrix candidate_projection_matrix_1;
         // count the amount of correct points, if higher, accept it as current best option
-        std::vector<Vector3D> projected_points = project_points(points_0, points_1, option.R, option.t, K, candidate_projection_matrix_0, candidate_projection_matrix_1);
+        std::vector<Vector3D> constructed_3D_points = Construct_3D_points(points_0, points_1, option.R, option.t, K,
+                                                                          candidate_projection_matrix_0, candidate_projection_matrix_1);
         int count = 0;
-        for (const auto& point : projected_points){
-            if (point.z() > 0){
+        for (const auto& point : constructed_3D_points){
+            Vector3D Q = option.R * point + option.t;
+            if (point.z() > 0 and Q.z() > 0){
                 count += 1;
             }
         }
@@ -288,15 +291,15 @@ bool Triangulation::triangulation(
             projection_matrix_1 = candidate_projection_matrix_1;
             R = option.R;
             t = option.t;
-            points_3d = projected_points;
+            points_3d = constructed_3D_points;
         }
     }
 
-    // check accuracy of reconstructed 3D points
+//     check accuracy of reconstructed 3D points
     int point_number = 0;
     double total_distance = 0.0;
     for (Vector3D point_3D: points_3d){
-        Vector point {std::vector<double>{point_3D.x(), point_3D.y(), point_3D.z(), 1.0}};
+        Vector point {std::vector<double>{point_3D.x(), point_3D.y(), point_3D.z(), 1}};
         Vector3D reprojected_camera0 = projection_matrix_0 * point;
         reprojected_camera0 = reprojected_camera0 / reprojected_camera0.z();
         Vector3D reprojected_camera1 = projection_matrix_1 * point;
@@ -307,7 +310,6 @@ bool Triangulation::triangulation(
     }
     double average_distance = total_distance / (points_0.size() * 2);
     std::cout << "Average distance from input points to reprojected points is " << average_distance << " pixels" << std::endl;
-
 
     if (points_3d.size() < 8){
         return false;
