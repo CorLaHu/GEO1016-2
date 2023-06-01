@@ -301,6 +301,9 @@ bool Triangulation::triangulation(
         tVector = -tVector;
     }
 
+    t = tVector;
+    R = RMatrix;
+
     // Create projection matrices
     Matrix34 Rt_0(1.0, 0.0, 0.0, 0.0,
                   0.0, 1.0, 0.0, 0.0,
