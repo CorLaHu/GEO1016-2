@@ -86,7 +86,7 @@ Matrix ConstructWMatrix(const std::vector<Vector2D> &points_normalized_0,
 }
 
 std::vector<Vector3D> Construct_3D_points(std::vector<Vector2D> points_0, std::vector<Vector2D> points_1,
-                                          Matrix33 R, Vector3D t, Matrix K, Matrix p_m0, Matrix p_m1){
+                                          Matrix33 R, Vector3D t, Matrix K, Matrix &p_m0, Matrix &p_m1){
     Matrix34 Rt_0(1.0, 0.0, 0.0, 0.0,
                   0.0, 1.0, 0.0, 0.0,
                   0.0, 0.0, 1.0, 0.0);
