@@ -238,69 +238,109 @@ bool Triangulation::triangulation(
                      -1.0, 0.0, 0.0,
                      0.0, 0.0, 0.0);
 
-    double option0 = determinant(U3 * WhyMatrix * V3.transpose());
-    double option1 = determinant(U3 * WhyMatrix.transpose() * V3.transpose());
-    double option2 = determinant(U3 * ZMatrix * V3.transpose());
-    double option3 = determinant(U3 * ZMatrix.transpose() * V3.transpose());
+//    double option0 = determinant(U3 * WhyMatrix * V3.transpose());
+//    double option1 = determinant(U3 * WhyMatrix.transpose() * V3.transpose());
+//    double option2 = determinant(U3 * ZMatrix * V3.transpose());
+//    double option3 = determinant(U3 * ZMatrix.transpose() * V3.transpose());
 
-    std::vector<double> options = {abs(option0 - 1), abs(option1 - 1), abs(option2 - 1), abs(option3 - 1)};
+    // print options
+//    std::cout << "option0: " << option0 << std::endl;
+//    std::cout << "option1: " << option1 << std::endl;
+//    std::cout << "option2: " << option2 << std::endl;
+//    std::cout << "option3: " << option3 << std::endl;
+//
+//    std::vector<double> options = {abs(option0 - 1), abs(option1 - 1), abs(option2 - 1), abs(option3 - 1)};
 
     // Get index of lowest in options
-    int index;
-    for (int i = 0; i < options.size(); i++){
-        if (options[i] == *std::min_element(options.begin(), options.end())){
-            index = i;
+//    int index;
+//    for (int i = 0; i < options.size(); i++){
+//        if (options[i] == *std::min_element(options.begin(), options.end())){
+//            index = i;
+//        }
+//    }
+
+    t = U3.get_column(U3.cols() - 1);
+
+//    // Select R matrix based on lowest option
+//    if (index == 0 || index == 2){
+//        R = U3 * WhyMatrix * V3.transpose();
+//    } else if (index == 1 || index == 3){
+//        R = U3 * WhyMatrix.transpose() * V3.transpose();
+//    };
+
+    struct Rtoptions{
+        Matrix33 R;
+        Vector3D t;
+    } option0, option1, option2, option3;
+
+    std::vector<Rtoptions> options = {option0, option1, option2, option3};
+    option0.R = U3 * WhyMatrix * V3.transpose();
+    option0.t = U3.get_column(U3.cols() - 1);
+
+    option1.R = U3 * WhyMatrix.transpose() * V3.transpose();
+    option1.t = -U3.get_column(U3.cols() - 1);
+
+    option2.R = U3 * ZMatrix * V3.transpose();
+    option2.t = U3.get_column(U3.cols() - 1);
+
+    option3.R = U3 * ZMatrix.transpose() * V3.transpose();
+    option3.t = -U3.get_column(U3.cols() - 1);
+
+    int best_count = 0;
+    for (const auto& option : options){
+        std::cout << "R: " << std::endl << option.R << std::endl;
+        std::cout << "t: " << std::endl << option.t << std::endl;
+        // count the amount of correct points, if higher, accept it as current best option
+        int count = 0;
+        for (const auto& point : points_0){
+            Vector3D projected_point = option.R * Vector3D(point.x(), point.y(), 1);
+            if (projected_point.z() > 0){
+                count += 1;
+            }
+        }
+        for (const auto& point : points_1){
+            Vector3D projected_point = option.R * Vector3D(point.x(), point.y(), 1) + option.t;
+            if (projected_point.z() > 0){
+                count += 1;
+            }
+        }
+        if (count > best_count){
+            best_count = count;
+            R = option.R;
+            t = option.t;
         }
     }
-
-    // Select R matrix based on lowest option
-    if (index == 0 || index == 2){
-        R = U3 * WhyMatrix * V3.transpose();
-        t = U3.get_column(U3.cols() - 1);
-    } else if (index == 1 || index == 3){
-        R = U3 * WhyMatrix.transpose() * V3.transpose();
-        t = -U3.get_column(U3.cols() - 1);
-    };
-
-    std::cout << "got here" << std::endl;
 
     // Check whether sign of t is correct by looking at the depth of the points. If z > 0, then the sign is correct
-    int count1 = 0;
-    for (const auto& point : points_1){
-        Vector3D projected_point = R * Vector3D(point.x(), point.y(), 1) + t;
-        if (projected_point.z() > 0){
-            count1 += 1;
-        }
-    }
-    for (const auto& point : points_0){
-        Vector3D projected_point = R * Vector3D(point.x(), point.y(), 1);
-        if (projected_point.z() > 0){
-            count1 += 1;
-        }
-    }
-
-    int count2 = 0;
-    for (const auto& point : points_0){
-        Vector3D projected_point = R * Vector3D(point.x(), point.y(), 1);
-        if (projected_point.z() > 0){
-            count2 += 1;
-        }
-    }
-
-    for (const auto& point : points_1){
-        Vector3D projected_point = R * Vector3D(point.x(), point.y(), 1) - t;
-        if (projected_point.z() > 0){
-            count2 += 1;
-        }
-    }
-
-    // Accept the sign of t that has the most points in front of the camera
-    if (count2 > count1){
-        t = -t;
-    }
-
-
-
+//    int count1 = 0;
+//    for (const auto& point : points_1){
+//        Vector3D projected_point = R * Vector3D(point.x(), point.y(), 1) + t;
+//        if (projected_point.z() > 0){
+//            count1 += 1;
+//        }
+//    }
+//
+//    for (const auto& point : points_0){
+//        Vector3D projected_point = R * Vector3D(point.x(), point.y(), 1);
+//        if (projected_point.z() > 0){
+//            count1 += 1;
+//        }
+//    }
+//
+//    int count2 = 0;
+//    for (const auto& point : points_0){
+//        Vector3D projected_point = R * Vector3D(point.x(), point.y(), 1);
+//        if (projected_point.z() > 0){
+//            count2 += 1;
+//        }
+//    }
+//
+//    for (const auto& point : points_1){
+//        Vector3D projected_point = R * Vector3D(point.x(), point.y(), 1) - t;
+//        if (projected_point.z() > 0){
+//            count2 += 1;
+//        }
+//    }
     // Create projection matrices
     Matrix34 Rt_0(1.0, 0.0, 0.0, 0.0,
                   0.0, 1.0, 0.0, 0.0,
