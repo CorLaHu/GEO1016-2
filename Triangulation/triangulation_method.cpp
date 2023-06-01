@@ -50,7 +50,7 @@ void Normalise2DPoints(const std::vector<Vector2D>& input, // input
     translation.y() = total_y / input.size();
 
     for (const auto& point : input){
-        output_points.emplace_back(point.x() - translation.x(), point.y() - translation.y());
+        output_points.emplace_back(Vector2D(point.x() - translation.x(), point.y() - translation.y()));
     };
 
     // Calculate the scaling factor
@@ -253,32 +253,27 @@ bool Triangulation::triangulation(
         }
     }
 
-    Vector3D tVector(0);
-    Matrix33 RMatrix;
-    std::cout << "index:" << std::endl;
-    std::cout << index << std::endl;
-    index = 0;
     // Select R matrix based on lowest option
     if (index == 0 || index == 2){
-        RMatrix = U3 * WhyMatrix * V3.transpose();
-        tVector = U3.get_column(U3.cols() - 1);
+        R = U3 * WhyMatrix * V3.transpose();
+        t = U3.get_column(U3.cols() - 1);
     } else if (index == 1 || index == 3){
-        RMatrix = U3 * WhyMatrix.transpose() * V3.transpose();
-        tVector = -U3.get_column(U3.cols() - 1);
+        R = U3 * WhyMatrix.transpose() * V3.transpose();
+        t = -U3.get_column(U3.cols() - 1);
     };
 
     std::cout << "got here" << std::endl;
 
-    // Check whether sign of tVector is correct by looking at the depth of the points. If z > 0, then the sign is correct
+    // Check whether sign of t is correct by looking at the depth of the points. If z > 0, then the sign is correct
     int count1 = 0;
     for (const auto& point : points_1){
-        Vector3D projected_point = RMatrix * Vector3D(point.x(), point.y(), 1) + tVector;
+        Vector3D projected_point = R * Vector3D(point.x(), point.y(), 1) + t;
         if (projected_point.z() > 0){
             count1 += 1;
         }
     }
     for (const auto& point : points_0){
-        Vector3D projected_point = RMatrix * Vector3D(point.x(), point.y(), 1);
+        Vector3D projected_point = R * Vector3D(point.x(), point.y(), 1);
         if (projected_point.z() > 0){
             count1 += 1;
         }
@@ -286,26 +281,25 @@ bool Triangulation::triangulation(
 
     int count2 = 0;
     for (const auto& point : points_0){
-        Vector3D projected_point = RMatrix * Vector3D(point.x(), point.y(), 1);
+        Vector3D projected_point = R * Vector3D(point.x(), point.y(), 1);
         if (projected_point.z() > 0){
             count2 += 1;
         }
     }
 
     for (const auto& point : points_1){
-        Vector3D projected_point = RMatrix * Vector3D(point.x(), point.y(), 1) - tVector;
+        Vector3D projected_point = R * Vector3D(point.x(), point.y(), 1) - t;
         if (projected_point.z() > 0){
             count2 += 1;
         }
     }
 
-    // Accept the sign of tVector that has the most points in front of the camera
+    // Accept the sign of t that has the most points in front of the camera
     if (count2 > count1){
-        tVector = -tVector;
+        t = -t;
     }
 
-    t = tVector;
-    R = RMatrix;
+
 
     // Create projection matrices
     Matrix34 Rt_0(1.0, 0.0, 0.0, 0.0,
@@ -313,9 +307,9 @@ bool Triangulation::triangulation(
                   0.0, 0.0, 1.0, 0.0);
     Matrix projection_matrix_0 = K * Rt_0;
 
-    Matrix34 Rt_1(RMatrix(0, 0), RMatrix(0, 1), RMatrix(0, 2), tVector.x(),
-                  RMatrix(1, 0), RMatrix(1, 1), RMatrix(1, 2), tVector.y(),
-                  RMatrix(2, 0), RMatrix(2, 1), RMatrix(2, 2), tVector.z());
+    Matrix34 Rt_1(R(0, 0), R(0, 1), R(0, 2), t.x(),
+                  R(1, 0), R(1, 1), R(1, 2), t.y(),
+                  R(2, 0), R(2, 1), R(2, 2), t.z());
     Matrix projection_matrix_1 = K * Rt_1;
 
     // create matrix A
@@ -338,10 +332,13 @@ bool Triangulation::triangulation(
         svd_decompose(A, U4, D4, V4);
         Vector P_inhomogeneous = V4.get_column(V4.cols() - 1);
         Vector P_homogeneous = P_inhomogeneous / P_inhomogeneous[3];
-        std::cout << "P:" << P_homogeneous << std::endl;
+        std::cout << "point " << i << ": " << P_homogeneous << std::endl;
         Vector3D P(P_homogeneous[0], P_homogeneous[1], P_homogeneous[2]);
         points_3d.push_back(P);
     }
+
+    std::cout << "R:" << R << std::endl;
+    std::cout << "t:" << t << std::endl;
 
 
     if (points_3d.size() < 8){
