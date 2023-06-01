@@ -50,7 +50,7 @@ void Normalise2DPoints(const std::vector<Vector2D>& input, // input
     translation.y() = total_y / input.size();
 
     for (const auto& point : input){
-        output_points.emplace_back(Vector2D(point.x() - translation.x(), point.y() - translation.y()));
+        output_points.emplace_back(point.x() - translation.x(), point.y() - translation.y());
     };
 
     // Calculate the scaling factor
@@ -238,12 +238,12 @@ bool Triangulation::triangulation(
                      -1.0, 0.0, 0.0,
                      0.0, 0.0, 0.0);
 
-    double option1 = determinant(U3 * WhyMatrix * V3.transpose());
-    double option2 = determinant(U3 * WhyMatrix.transpose() * V3.transpose());
-    double option3 = determinant(U3 * ZMatrix * V3.transpose());
-    double option4 = determinant(U3 * ZMatrix.transpose() * V3.transpose());
+    double option0 = determinant(U3 * WhyMatrix * V3.transpose());
+    double option1 = determinant(U3 * WhyMatrix.transpose() * V3.transpose());
+    double option2 = determinant(U3 * ZMatrix * V3.transpose());
+    double option3 = determinant(U3 * ZMatrix.transpose() * V3.transpose());
 
-    std::vector<double> options = {abs(option1 - 1), abs(option2 - 1), abs(option3 - 1), abs(option4 - 1)};
+    std::vector<double> options = {abs(option0 - 1), abs(option1 - 1), abs(option2 - 1), abs(option3 - 1)};
 
     // Get index of lowest in options
     int index;
@@ -255,6 +255,9 @@ bool Triangulation::triangulation(
 
     Vector3D tVector(0);
     Matrix33 RMatrix;
+    std::cout << "index:" << std::endl;
+    std::cout << index << std::endl;
+    index = 0;
     // Select R matrix based on lowest option
     if (index == 0 || index == 2){
         RMatrix = U3 * WhyMatrix * V3.transpose();
