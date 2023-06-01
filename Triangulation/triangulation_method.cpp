@@ -85,6 +85,52 @@ Matrix ConstructWMatrix(const std::vector<Vector2D> &points_normalized_0,
     return wmatrix;
 }
 
+std::vector<Vector3D> project_points(std::vector<Vector2D> points_0, std::vector<Vector2D> points_1,
+                                     Matrix33 R,Vector3D t, Matrix K, Matrix &p_m0, Matrix &p_m1){
+    Matrix34 Rt_0(1.0, 0.0, 0.0, 0.0,
+                  0.0, 1.0, 0.0, 0.0,
+                  0.0, 0.0, 1.0, 0.0);
+    Matrix projection_matrix_0 = K * Rt_0;
+
+    p_m0 = projection_matrix_0;
+
+
+    Matrix34 Rt_1(R(0, 0), R(0, 1), R(0, 2), t.x(),
+                  R(1, 0), R(1, 1), R(1, 2), t.y(),
+                  R(2, 0), R(2, 1), R(2, 2), t.z());
+    Matrix projection_matrix_1 = K * Rt_1;
+
+    p_m1 = projection_matrix_1;
+
+    // create matrix A
+    Vector m1_0 = projection_matrix_0.get_row(0);
+    Vector m2_0 = projection_matrix_0.get_row(1);
+    Vector m3_0 = projection_matrix_0.get_row(2);
+    Vector m1_1 = projection_matrix_1.get_row(0);
+    Vector m2_1 = projection_matrix_1.get_row(1);
+    Vector m3_1 = projection_matrix_1.get_row(2);
+
+    std::vector<Vector3D> returnpoints;
+
+    for (int i = 0; i < points_0.size(); ++i){
+        Matrix A(4, 4, 0.0);
+        A.set_row(0, points_0[i].x()* m3_0 - m1_0);
+        A.set_row(1, points_0[i].y()* m3_0 - m2_0);
+        A.set_row(2, points_1[i].x()* m3_1 - m1_1);
+        A.set_row(3, points_1[i].y()* m3_1 - m2_1);
+        Matrix U4(4, 4, 0.0);   // initialized with 0s
+        Matrix D4(4, 4, 0.0);   // initialized with 0s
+        Matrix V4(4, 4, 0.0);   // initialized with 0s
+        svd_decompose(A, U4, D4, V4);
+        Vector P_inhomogeneous = V4.get_column(V4.cols() - 1);
+        Vector P_homogeneous = P_inhomogeneous / P_inhomogeneous[3];
+        std::cout << "point " << i << ": " << P_homogeneous << std::endl;
+        Vector3D P(P_homogeneous[0], P_homogeneous[1], P_homogeneous[2]);
+        returnpoints.push_back(P);
+    }
+    return returnpoints;
+}
+
 bool Triangulation::triangulation(
         double fx, double fy,     /// input: the focal lengths (same for both cameras)
         double cx, double cy,     /// input: the principal point (same for both cameras)
@@ -95,15 +141,6 @@ bool Triangulation::triangulation(
         Vector3D &t    /// output: 3D vector, which is the recovered translation of the 2nd camera
 ) const
 {
-    /// NOTE: there might be multiple workflows for reconstructing 3D geometry from corresponding image points.
-    ///       This assignment uses the commonly used one explained in our lecture.
-    ///       It is advised to define a function for the sub-tasks. This way you have a clean and well-structured
-    ///       implementation, which also makes testing and debugging easier. You can put your other functions above
-    ///       triangulation(), or put them in one or multiple separate files.
-
-    std::cout << "\nTODO: I am going to implement the triangulation() function in the following file:" << std::endl
-              << "\t    - triangulation_method.cpp\n\n";
-
     std::cout << "[Liangliang]:\n"
                  "\tFeel free to use any provided data structures and functions. For your convenience, the\n"
                  "\tfollowing three files implement basic linear algebra data structures and operations:\n"
@@ -118,33 +155,6 @@ bool Triangulation::triangulation(
                  "\t    - include all the source code (and please do NOT modify the structure of the directories).\n"
                  "\t    - do NOT include the 'build' directory (which contains the intermediate files in a build step).\n"
                  "\t    - make sure your code compiles and can reproduce your results without ANY modification.\n\n" << std::flush;
-
-    /// Below are a few examples showing some useful data structures and APIs.
-
-    /// define a 2D vector/point
-    Vector2D b(1.1, 2.2);
-
-    /// define a 3D vector/point
-    Vector3D a(1.1, 2.2, 3.3);
-
-    /// get the Cartesian coordinates of a (a is treated as Homogeneous coordinates)
-    Vector2D p = a.cartesian();
-
-    /// get the Homogeneous coordinates of p
-    Vector3D q = p.homogeneous();
-
-    /// define a 3 by 3 matrix (and all elements initialized to 0.0)
-
-    /// define a 3 by 3 identity matrix
-
-    /// matrix-vector product
-
-    ///For more functions of Matrix and Vector, please refer to 'matrix.h' and 'vector.h'
-
-    // TODO: delete all above example code in your final submission
-
-    //--------------------------------------------------------------------------------------------------------------
-    // implementation starts ...
 
 
     // TODO: Estimate relative pose of two views. This can be subdivided into
@@ -238,147 +248,53 @@ bool Triangulation::triangulation(
                      -1.0, 0.0, 0.0,
                      0.0, 0.0, 0.0);
 
-//    double option0 = determinant(U3 * WhyMatrix * V3.transpose());
-//    double option1 = determinant(U3 * WhyMatrix.transpose() * V3.transpose());
-//    double option2 = determinant(U3 * ZMatrix * V3.transpose());
-//    double option3 = determinant(U3 * ZMatrix.transpose() * V3.transpose());
-
-    // print options
-//    std::cout << "option0: " << option0 << std::endl;
-//    std::cout << "option1: " << option1 << std::endl;
-//    std::cout << "option2: " << option2 << std::endl;
-//    std::cout << "option3: " << option3 << std::endl;
-//
-//    std::vector<double> options = {abs(option0 - 1), abs(option1 - 1), abs(option2 - 1), abs(option3 - 1)};
-
-    // Get index of lowest in options
-//    int index;
-//    for (int i = 0; i < options.size(); i++){
-//        if (options[i] == *std::min_element(options.begin(), options.end())){
-//            index = i;
-//        }
-//    }
-
-    t = U3.get_column(U3.cols() - 1);
-
-//    // Select R matrix based on lowest option
-//    if (index == 0 || index == 2){
-//        R = U3 * WhyMatrix * V3.transpose();
-//    } else if (index == 1 || index == 3){
-//        R = U3 * WhyMatrix.transpose() * V3.transpose();
-//    };
-
-    struct Rtoptions{
+    struct Rt_options{
         Matrix33 R;
         Vector3D t;
     } option0, option1, option2, option3;
 
-    std::vector<Rtoptions> options = {option0, option1, option2, option3};
-    option0.R = U3 * WhyMatrix * V3.transpose();
+    option0.R = determinant(U3 * WhyMatrix * V3.transpose()) * U3 * WhyMatrix * V3.transpose();
     option0.t = U3.get_column(U3.cols() - 1);
 
-    option1.R = U3 * WhyMatrix.transpose() * V3.transpose();
+    option1.R = determinant(U3 * WhyMatrix * V3.transpose()) * U3 * WhyMatrix * V3.transpose();
     option1.t = -U3.get_column(U3.cols() - 1);
 
-    option2.R = U3 * ZMatrix * V3.transpose();
+    option2.R = determinant(U3 * WhyMatrix.transpose() * V3.transpose()) * U3 * WhyMatrix.transpose() * V3.transpose();
     option2.t = U3.get_column(U3.cols() - 1);
 
-    option3.R = U3 * ZMatrix.transpose() * V3.transpose();
+    option3.R = determinant(U3 * WhyMatrix.transpose() * V3.transpose()) * U3 * WhyMatrix.transpose() * V3.transpose();
     option3.t = -U3.get_column(U3.cols() - 1);
 
+    std::vector<Rt_options> options = {option0, option1, option2, option3};
+
     int best_count = 0;
+    int index_counter = 0;
+    Matrix projection_matrix_0;
+    Matrix projection_matrix_1;
     for (const auto& option : options){
+        index_counter += 1;
+        std::cout << "option: " << index_counter << std::endl;
         std::cout << "R: " << std::endl << option.R << std::endl;
         std::cout << "t: " << std::endl << option.t << std::endl;
+        Matrix candidate_projection_matrix_0;
+        Matrix candidate_projection_matrix_1;
         // count the amount of correct points, if higher, accept it as current best option
+        std::vector<Vector3D> projected_points = project_points(points_0, points_1, option.R, option.t, K, candidate_projection_matrix_0, candidate_projection_matrix_1);
         int count = 0;
-        for (const auto& point : points_0){
-            Vector3D projected_point = option.R * Vector3D(point.x(), point.y(), 1);
-            if (projected_point.z() > 0){
-                count += 1;
-            }
-        }
-        for (const auto& point : points_1){
-            Vector3D projected_point = option.R * Vector3D(point.x(), point.y(), 1) + option.t;
-            if (projected_point.z() > 0){
+        for (const auto& point : projected_points){
+            if (point.z() > 0){
                 count += 1;
             }
         }
         if (count > best_count){
             best_count = count;
+            projection_matrix_0 = candidate_projection_matrix_0;
+            projection_matrix_1 = candidate_projection_matrix_1;
             R = option.R;
             t = option.t;
+            points_3d = projected_points;
         }
     }
-
-    // Check whether sign of t is correct by looking at the depth of the points. If z > 0, then the sign is correct
-//    int count1 = 0;
-//    for (const auto& point : points_1){
-//        Vector3D projected_point = R * Vector3D(point.x(), point.y(), 1) + t;
-//        if (projected_point.z() > 0){
-//            count1 += 1;
-//        }
-//    }
-//
-//    for (const auto& point : points_0){
-//        Vector3D projected_point = R * Vector3D(point.x(), point.y(), 1);
-//        if (projected_point.z() > 0){
-//            count1 += 1;
-//        }
-//    }
-//
-//    int count2 = 0;
-//    for (const auto& point : points_0){
-//        Vector3D projected_point = R * Vector3D(point.x(), point.y(), 1);
-//        if (projected_point.z() > 0){
-//            count2 += 1;
-//        }
-//    }
-//
-//    for (const auto& point : points_1){
-//        Vector3D projected_point = R * Vector3D(point.x(), point.y(), 1) - t;
-//        if (projected_point.z() > 0){
-//            count2 += 1;
-//        }
-//    }
-    // Create projection matrices
-    Matrix34 Rt_0(1.0, 0.0, 0.0, 0.0,
-                  0.0, 1.0, 0.0, 0.0,
-                  0.0, 0.0, 1.0, 0.0);
-    Matrix projection_matrix_0 = K * Rt_0;
-
-    Matrix34 Rt_1(R(0, 0), R(0, 1), R(0, 2), t.x(),
-                  R(1, 0), R(1, 1), R(1, 2), t.y(),
-                  R(2, 0), R(2, 1), R(2, 2), t.z());
-    Matrix projection_matrix_1 = K * Rt_1;
-
-    // create matrix A
-    Vector m1_0 = projection_matrix_0.get_row(0);
-    Vector m2_0 = projection_matrix_0.get_row(1);
-    Vector m3_0 = projection_matrix_0.get_row(2);
-    Vector m1_1 = projection_matrix_1.get_row(0);
-    Vector m2_1 = projection_matrix_1.get_row(1);
-    Vector m3_1 = projection_matrix_1.get_row(2);
-
-    for(int i = 0; i < points_0.size(); ++i){
-        Matrix A(4, 4, 0.0);
-        A.set_row(0, points_0[i].x()* m3_0 - m1_0);
-        A.set_row(1, points_0[i].y()* m3_0 - m2_0);
-        A.set_row(2, points_1[i].x()* m3_1 - m1_1);
-        A.set_row(3, points_1[i].y()* m3_1 - m2_1);
-        Matrix U4(4, 4, 0.0);   // initialized with 0s
-        Matrix D4(4, 4, 0.0);   // initialized with 0s
-        Matrix V4(4, 4, 0.0);   // initialized with 0s
-        svd_decompose(A, U4, D4, V4);
-        Vector P_inhomogeneous = V4.get_column(V4.cols() - 1);
-        Vector P_homogeneous = P_inhomogeneous / P_inhomogeneous[3];
-        std::cout << "point " << i << ": " << P_homogeneous << std::endl;
-        Vector3D P(P_homogeneous[0], P_homogeneous[1], P_homogeneous[2]);
-        points_3d.push_back(P);
-    }
-
-    std::cout << "R:" << R << std::endl;
-    std::cout << "t:" << t << std::endl;
 
 
     if (points_3d.size() < 8){
