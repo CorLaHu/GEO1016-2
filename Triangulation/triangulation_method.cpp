@@ -124,7 +124,6 @@ std::vector<Vector3D> project_points(std::vector<Vector2D> points_0, std::vector
         svd_decompose(A, U4, D4, V4);
         Vector P_inhomogeneous = V4.get_column(V4.cols() - 1);
         Vector P_homogeneous = P_inhomogeneous / P_inhomogeneous[3];
-        std::cout << "point " << i << ": " << P_homogeneous << std::endl;
         Vector3D P(P_homogeneous[0], P_homogeneous[1], P_homogeneous[2]);
         returnpoints.push_back(P);
     }
@@ -273,9 +272,6 @@ bool Triangulation::triangulation(
     Matrix projection_matrix_1;
     for (const auto& option : options){
         index_counter += 1;
-        std::cout << "option: " << index_counter << std::endl;
-        std::cout << "R: " << std::endl << option.R << std::endl;
-        std::cout << "t: " << std::endl << option.t << std::endl;
         Matrix candidate_projection_matrix_0;
         Matrix candidate_projection_matrix_1;
         // count the amount of correct points, if higher, accept it as current best option
@@ -295,6 +291,22 @@ bool Triangulation::triangulation(
             points_3d = projected_points;
         }
     }
+
+    // check accuracy of reconstructed 3D points
+    int point_number = 0;
+    double total_distance = 0.0;
+    for (Vector3D point_3D: points_3d){
+        Vector point {std::vector<double>{point_3D.x(), point_3D.y(), point_3D.z(), 1.0}};
+        Vector3D reprojected_camera0 = projection_matrix_0 * point;
+        reprojected_camera0 = reprojected_camera0 / reprojected_camera0.z();
+        Vector3D reprojected_camera1 = projection_matrix_1 * point;
+        reprojected_camera1 = reprojected_camera1 / reprojected_camera1.z();
+        total_distance += sqrt(pow((reprojected_camera0.x() - points_0[point_number].x()), 2) + (pow((reprojected_camera0.y() - points_0[point_number].y()), 2)));
+        total_distance += sqrt(pow((reprojected_camera1.x() - points_1[point_number].x()), 2) + (pow((reprojected_camera1.y() - points_1[point_number].y()), 2)));
+        point_number += 1;
+    }
+    double average_distance = total_distance / (points_0.size() * 2);
+    std::cout << "Average distance from input points to reprojected points is " << average_distance << " pixes" << std::endl;
 
 
     if (points_3d.size() < 8){
