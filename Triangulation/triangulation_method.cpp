@@ -306,7 +306,7 @@ bool Triangulation::triangulation(
         point_number += 1;
     }
     double average_distance = total_distance / (points_0.size() * 2);
-    std::cout << "Average distance from input points to reprojected points is " << average_distance << " pixes" << std::endl;
+    std::cout << "Average distance from input points to reprojected points is " << average_distance << " pixels" << std::endl;
 
 
     if (points_3d.size() < 8){
