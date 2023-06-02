@@ -29,12 +29,6 @@
 
 using namespace easy3d;
 
-/**
- * TODO: Finish this function for reconstructing 3D geometry from corresponding image points.
- * @return True on success, otherwise false. On success, the reconstructed 3D points must be written to 'points_3d'
- *      and the recovered relative pose must be written to R and t.
- */
-
 void Normalise2DPoints(const std::vector<Vector2D>& input, // input
                        std::vector<Vector2D>& output_points, // output
                        Vector2D& translation, double& scaling // output
@@ -102,7 +96,7 @@ std::vector<Vector3D> Construct_3D_points(std::vector<Vector2D> points_0, std::v
 
     p_m1 = projection_matrix_1;
 
-    // create matrix A
+    // Create matrix A
     Vector m1_0 = projection_matrix_0.get_row(0);
     Vector m2_0 = projection_matrix_0.get_row(1);
     Vector m3_0 = projection_matrix_0.get_row(2);
@@ -156,29 +150,17 @@ bool Triangulation::triangulation(
                  "\t    - do NOT include the 'build' directory (which contains the intermediate files in a build step).\n"
                  "\t    - make sure your code compiles and can reproduce your results without ANY modification.\n\n" << std::flush;
 
+    // Step 0: Checking the input data
+    if (points_0.size() != points_1.size()) {
+        std::cout << "The points are not of equal size" << std::endl;
+        return false;
+    }
+    if (points_0.size() < 8 || points_1.size() < 8) {
+        std::cout << "The points pair do not have the minimal requirement" << std::endl;
+        return false;
+    }
 
-    // TODO: Estimate relative pose of two views. This can be subdivided into
-    //      - estimate the fundamental matrix F;
-    //      - compute the essential matrix E;
-    //      - recover rotation R and t.
-
-    // TODO: Reconstruct 3D points. The main task is
-    //      - triangulate a pair of image points (i.e., compute the 3D coordinates for each corresponding point pair)
-
-    // TODO: Don't forget to
-    //          - write your recovered 3D points into 'points_3d' (so the viewer can visualize the 3D points for you);
-    //          - write the recovered relative pose into R and t (the view will be updated as seen from the 2nd camera,
-    //            which can help you check if R and t are correct).
-    //       You must return either 'true' or 'false' to indicate whether the triangulation was successful (so the
-    //       viewer will be notified to visualize the 3D points and update the view).
-    //       There are a few cases you should return 'false' instead, for example:
-    //          - function not implemented yet;
-    //          - input not valid (e.g., not enough points, point numbers don't match);
-    //          - encountered failure in any step.
-
-    // TODO: think about whether this is actually correct for an input check.
-
-
+    // Step 1: Estimate fundamental matrix F
     std::vector<Vector2D> points_normalized_0;
     Vector2D translation0(0.0, 0.0);
     double scaling0= 0.0;
@@ -227,7 +209,6 @@ bool Triangulation::triangulation(
 
 
     // Calibration matrices
-    // Ask about whether the skew should be 1 or 0 in the K matrix
     Matrix33 K(fx, 0, cx,
                0, fy, cy,
                0, 0, 1);
@@ -248,6 +229,7 @@ bool Triangulation::triangulation(
                      -1.0, 0.0, 0.0,
                      0.0, 0.0, 0.0);
 
+    // Step 2: Recover relative pose
     struct Rt_options{
         Matrix33 R;
         Vector3D t;
@@ -267,6 +249,7 @@ bool Triangulation::triangulation(
 
     std::vector<Rt_options> options = {option0, option1, option2, option3};
 
+    // Step 3: Determine the 3D coordinates
     int best_count = 0;
     int index_counter = 0;
     Matrix projection_matrix_0;
@@ -275,7 +258,7 @@ bool Triangulation::triangulation(
         index_counter += 1;
         Matrix candidate_projection_matrix_0;
         Matrix candidate_projection_matrix_1;
-        // count the amount of correct points, if higher, accept it as current best option
+        // Count the amount of correct points, if higher, accept it as current best option
         std::vector<Vector3D> constructed_3D_points = Construct_3D_points(points_0, points_1, option.R, option.t, K,
                                                                           candidate_projection_matrix_0, candidate_projection_matrix_1);
         int count = 0;
@@ -295,7 +278,8 @@ bool Triangulation::triangulation(
         }
     }
 
-//     check accuracy of reconstructed 3D points
+    // Step 4: Evaluation
+    // Check accuracy of reconstructed 3D points
     int point_number = 0;
     double total_distance = 0.0;
     for (Vector3D point_3D: points_3d){
@@ -314,8 +298,6 @@ bool Triangulation::triangulation(
     if (points_3d.size() < 8){
         return false;
     };
-
-
 
     return true;
 }
